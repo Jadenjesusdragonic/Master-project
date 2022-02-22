@@ -1,0 +1,7 @@
+read the article: Science-Driven Tunable Design of Cosmic Explorer Detectors
+change the main code distance and inclanation from its fixed code
+Calaculate the SNR 
+
+2/21/2022
+I finished the reading the article and now will look into making changes on the code
+This needs to work on samples instead of using the fixed values. 
