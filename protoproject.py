@@ -300,10 +300,24 @@ def generate_3g_waveform(m1,m2,distance,inclination,lambda1,lambda2):
                                  lambda1=lambda1,
                                  lambda2=lambda2) 
     
+#Zero Noise code 
+fake_rate=2
 
+strain = TimeSeries(pycbc.types.zeros(duration * fake_rate),
+                                delta_t=1.0 / fake_rate,
+                                epoch=0)
 
+wavebase = TimeSeries( np.zeros(strain) ,delta_t=delta_t)
+for i in range(m1_samples):
+  m1=m1_samples[i]
+  m2=m2_samples[i]
+  distance=luminosity_distance_Mpc[i]
+  wave1 = generate_3g_waveform(m1,m2,distance) 
 
+wavebase = wavebase.add_into(wave1) 
+wavebase = wavebase.add_into(wavebase)
 
+f7.plot(wavebase.sample_times, wavebase, label = "m1 = {0}, m2 = {1}".format(m1,m2),color='r')
 f7.plot(hp, hp, label='demo' )
 f7.plot(hp, hc, label='demo1')
 f7.plot(xvh.sample_frequencies, waveform_power(xvh), label='gravitational wave model PSD')
