@@ -1,4 +1,6 @@
+from distutils.errors import DistutilsArgError
 from inspect import Parameter
+from turtle import distance
 import pylab
 
 from pycbc import waveform
@@ -13,6 +15,7 @@ import math
 from bajes.obs.gw import Series
 import pycbc.psd
 
+from pycbc.waveform import get_td_waveform 
 from pycbc.waveform import get_fd_waveform
 from pycbc.filter import matched_filter
 from pycbc import psd
@@ -170,6 +173,7 @@ for num in range(iterations):
               'eccentricity' : 0.
              }  
 
+
   #calculates hp and hc
   hp, hc = wave.compute_hphc(params)
   
@@ -229,7 +233,7 @@ f4.set_facecolor(c)
 
 
 #SNR-------------------------------------------------------------------
-print(pycbc.psd.get_lalsim_psd_list())
+#print(pycbc.psd.get_lalsim_psd_list())
 
 delta_f = 1.0 / 4
 flen = int(1024 / delta_f)
@@ -278,48 +282,61 @@ reference_SNR_Aplus = sigma(xvh, AdvancedLIGOPlusPSD,low_frequency_cutoff=low_fr
 print ("SNR of reference signal is", reference_SNR, "compared to", reference_SNR_Aplus,"in Advanced LIGO Plus")
 print ("Cosmic Explorer gives SNR",reference_SNR/reference_SNR_Aplus ,"times greater." )
 #SNR-----------------------------------------------------------------------------
-from pycbc.waveform import get_td_waveform 
-from pycbc.waveform import td_approximants 
+#wavefunction--------------------------------------------------------------------
 from pycbc.types import TimeSeries 
 from pycbc import waveform 
-from astropy.cosmology import WMAP9 as cosmo
 
-DELTA_T= 1.0/4096 #sampling rate 
-FLOW= 15.0 #low frequency cut off for waveforms
 
+delta_t= 1.0/4096 #sampling rate 
+flow= 15.0 #low frequency cut off for waveforms
+dist = luminosity_distance_Mpc
+inclination=costheta_jn
 
 #Define waveform function
-def generate_3g_waveform(m1,m2,distance,inclination,lambda1,lambda2): 
-    hp, hc = get_td_waveform(approximant='TaylorT4', 
-                                 mass1=m1_samples[arr_index], 
-                                 mass2=m2_samples[arr_index], 
-                                 distance = luminosity_distance_Mpc, 
-                                 delta_t=DELTA_T, 
-                                 f_lower=FLOW,
+def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
+  hp, hc = get_td_waveform(approximant='TaylorT4', 
+                                 mass1=m1, 
+                                 mass2=m2, 
+                                 dist = distance, 
+                                 delta_t=delta_t, 
+                                 f_lower=flow,
                                  inclination=costheta_jn,
                                  lambda1=lambda1,
                                  lambda2=lambda2) 
+  return hp,hc
     
+print('m1 value:',m1_samples)
+print( 'm2 value:', m2_samples)
+print('inclination:',inclination)
+print('distance:',luminosity_distance_Mpc)
+print('lambda1:',lambda1)
+print('lambda2',lambda2)
+print('duration',duration)
 #Zero Noise code 
-fake_rate=2
+from pycbc.types import TimeSeries, zeros
+fake_rate=16384
 
-strain = TimeSeries(pycbc.types.zeros(duration * fake_rate),
-                                delta_t=1.0 / fake_rate,
+wavebasez = TimeSeries(pycbc.types.zeros(duration * fake_rate),
+                                delta_t=delta_t/ fake_rate,
                                 epoch=0)
-
-wavebase = TimeSeries( np.zeros(strain) ,delta_t=delta_t)
-for i in range(m1_samples):
+m1_samples = []
+m2_samples = []
+#wavebase = TimeSeries( np.zeros(zero) ,delta_t=delta_t)
+for i in range(len(m1_samples)):
   m1=m1_samples[i]
   m2=m2_samples[i]
-  distance=luminosity_distance_Mpc[i]
-  wave1 = generate_3g_waveform(m1,m2,distance) 
+  dist=luminosity_distance_Mpc[i]
+  lambda1=lambda1[i]
+  lambda2=lambda2[i]
+  wave1 = generate_3g_waveform(m1,m2,dist,lambda1,lambda2) 
+  wavebasez = wavebasez.add_into(wave1) 
+wavebase = wavebasez.add_into(wavebasez)
 
-wavebase = wavebase.add_into(wave1) 
-wavebase = wavebase.add_into(wavebase)
-
-f7.plot(wavebase.sample_times, wavebase, label = "m1 = {0}, m2 = {1}".format(m1,m2),color='r')
-f7.plot(hp, hp, label='demo' )
-f7.plot(hp, hc, label='demo1')
+f7.plot(wavebasez.sample_times, wavebasez, label = "m1 = {0}, m2 = {1},dist = {2},lambda1 = {3},lambda2 = {4}".format(m1,m2,dist,lambda1,lambda2),color='r')
+f7.plot(hp, hc, label='inclination' )
+#f7.plot(hp, hc, label='demo1')
 f7.plot(xvh.sample_frequencies, waveform_power(xvh), label='gravitational wave model PSD')
+#wavefunction end-------------------------------------------------------------------------
+
 #saves the images 
-fig.savefig('/Users/jadenjesus/Documents/Grad_project/test10.png')
+fig.savefig('/Users/jadenjesus/Documents/Grad_project/test11.png')
