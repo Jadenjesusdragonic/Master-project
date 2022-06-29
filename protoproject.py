@@ -1,3 +1,4 @@
+from cmath import sqrt
 from distutils.errors import DistutilsArgError
 from inspect import Parameter
 from turtle import distance
@@ -112,11 +113,14 @@ transparency = 0.4
 lwidth= 3
 iterations= 10
 
-
+postmerger_snrs = []
 #make 4 subplots so all simulations could be grouped together
 #formatting all 4 subplots
 plt.style.use('seaborn-pastel')
-fig, (f1, f2, f3, f4, f5,f6,f7) = plt.subplots(7, figsize=(8, 13))
+fig, (f1, f2, f3, f4) = plt.subplots(4, figsize=(8, 13))
+fig, (f2, f3) = plt.subplots(2, figsize=(8, 13))
+luminosity_distance_Mpc=distance
+low_frequency_cutoff = 5
 
 #make simulations
 for num in range(iterations):
@@ -173,10 +177,23 @@ for num in range(iterations):
               'eccentricity' : 0.
              }  
 
+  xvh, _ = waveform.get_fd_waveform(approximant="IMRPhenomD", 
+                                  mass1=m1_samples[arr_index],
+                                  mass2=m2_samples[arr_index],
+                                  distance=luminosity_distance_Mpc,
+                                  delta_f=1.0,
+                                  f_lower=low_frequency_cutoff)
 
+  def waveform_power(waveform_model):
+    return 4*np.abs(waveform_model)*np.abs(waveform_model)*waveform_model.sample_frequencies  
+
+  CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(xvh),xvh.delta_f, low_freq_cutoff=low_frequency_cutoff)
+  AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(xvh),xvh.delta_f,low_freq_cutoff=low_frequency_cutoff)
+  max_freq=CosmicExplorerPSD.sample_frequencies[-1]
+  max_freq_APlus=AdvancedLIGOPlusPSD.sample_frequencies[-1] 
   #calculates hp and hc
   hp, hc = wave.compute_hphc(params)
-  
+
   #makes a plot of h+ amplitude vs time
  
   f1.plot(series.times, hp, alpha= transparency, linewidth=3, label= None)
@@ -187,8 +204,7 @@ for num in range(iterations):
   hp_fs = hp_ts.to_frequencyseries(delta_f=0.125) #HP Frequency Series
 
   #makes plot of h+ amplitude vs frequency
-
-  f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
+  f2.loglog(hp_fs.sample_frequencies,.5* np.abs(hp_fs), 
     lw=lwidth, alpha= transparency, label= None)
   
   #makes power spectral density plot
@@ -202,7 +218,12 @@ for num in range(iterations):
 
   #iterates arr_index for next simulation
   arr_index = arr_index + 1
-  
+
+ 
+
+f3.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd')
+f3.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
+f3.legend()
 
 #formating our waveform graphs individually
 f1.set_title('Postmerger h+ Strain vs. Time', fontsize=22, loc='center')
@@ -214,14 +235,17 @@ f1.grid(False)
 f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
 f2.set_ylabel("Amplitude", fontsize=14)
 f2.set_xlabel("Frequency", fontsize=14)
-f2.set_xlim(xmin=1000, xmax=10000)
-f2.set_ylim(ymin=10**-29, ymax=10**-24)
+f2.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd')
+f2.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
+f2.legend()
+#f2.set_xlim(xmin=1000, xmax=10000)
+#f2.set_ylim(ymin=10**-29, ymax=10**-24)
 f2.set_facecolor(c)
 f2.grid(False)
 
 f3.set_title('Power Spectral Density', fontsize=22)
-f3.set_xlim(xmin=10**3, xmax=10**4)
-f3.set_ylim(ymin=10**-54, ymax=10**-44)
+#f3.set_xlim(xmin=10**3, xmax=10**4)
+#f3.set_ylim(ymin=10**-54, ymax=10**-44)
 f3.set_facecolor(c)
 f3.grid(False)
 
@@ -235,108 +259,22 @@ f4.set_facecolor(c)
 #SNR-------------------------------------------------------------------
 #print(pycbc.psd.get_lalsim_psd_list())
 
-delta_f = 1.0 / 4
-flen = int(1024 / delta_f)
-low_frequency_cutoff = 5
-
-xvh, _ = waveform.get_fd_waveform(approximant="IMRPhenomD", 
-                                  mass1=m1_samples[arr_index],
-                                  mass2=m2_samples[arr_index],
-                                  distance=luminosity_distance_Mpc,
-                                  delta_f=1.0,
-                                  f_lower=low_frequency_cutoff)
-                      
-p1 = pycbc.psd.aLIGOZeroDetHighPower(flen, delta_f, low_frequency_cutoff)
-
-
-
-
-
-f5.loglog(xvh.sample_frequencies,abs(xvh), label='xvh')
-f5.loglog(p1.sample_frequencies, p1, label='LowPower')
-
-#f5.set_xlim(20,10000)
-
-def waveform_power(waveform_model):
-  return 4*np.abs(waveform_model)*np.abs(waveform_model)*waveform_model.sample_frequencies
-
-CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(xvh),xvh.delta_f, low_freq_cutoff=low_frequency_cutoff)
-AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(xvh),xvh.delta_f,low_freq_cutoff=low_frequency_cutoff)
-
-max_freq=CosmicExplorerPSD.sample_frequencies[-1]
-max_freq_APlus=AdvancedLIGOPlusPSD.sample_frequencies[-1]
-print(max_freq, max_freq_APlus)
-
-f6.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd')
-f6.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
-f6.loglog(xvh.sample_frequencies, waveform_power(xvh), label='gravitational wave model PSD')
-f6.legend()
-
-
 from pycbc.filter.matchedfilter import sigma
 reference_SNR = sigma(xvh, CosmicExplorerPSD,low_frequency_cutoff=low_frequency_cutoff, high_frequency_cutoff=max_freq)
 reference_SNR_Aplus = sigma(xvh, AdvancedLIGOPlusPSD,low_frequency_cutoff=low_frequency_cutoff, high_frequency_cutoff=max_freq)
 
 
-
 print ("SNR of reference signal is", reference_SNR, "compared to", reference_SNR_Aplus,"in Advanced LIGO Plus")
 print ("Cosmic Explorer gives SNR",reference_SNR/reference_SNR_Aplus ,"times greater." )
 #SNR-----------------------------------------------------------------------------
-#wavefunction--------------------------------------------------------------------
-from pycbc.types import TimeSeries 
-from pycbc import waveform 
-
-
-delta_t= 1.0/4096 #sampling rate 
-flow= 15.0 #low frequency cut off for waveforms
-dist = luminosity_distance_Mpc
-inclination=costheta_jn
-
-#Define waveform function
-def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
-  hp, hc = get_td_waveform(approximant='TaylorT4', 
-                                 mass1=m1, 
-                                 mass2=m2, 
-                                 dist = distance, 
-                                 delta_t=delta_t, 
-                                 f_lower=flow,
-                                 inclination=costheta_jn,
-                                 lambda1=lambda1,
-                                 lambda2=lambda2) 
-  return hp,hc
     
 print('m1 value:',m1_samples)
 print( 'm2 value:', m2_samples)
-print('inclination:',inclination)
+
 print('distance:',luminosity_distance_Mpc)
 print('lambda1:',lambda1)
 print('lambda2',lambda2)
 print('duration',duration)
-#Zero Noise code 
-from pycbc.types import TimeSeries, zeros
-fake_rate=16384
-
-wavebasez = TimeSeries(pycbc.types.zeros(duration * fake_rate),
-                                delta_t=delta_t/ fake_rate,
-                                epoch=0)
-m1_samples = []
-m2_samples = []
-#wavebase = TimeSeries( np.zeros(zero) ,delta_t=delta_t)
-for i in range(len(m1_samples)):
-  m1=m1_samples[i]
-  m2=m2_samples[i]
-  dist=luminosity_distance_Mpc[i]
-  lambda1=lambda1[i]
-  lambda2=lambda2[i]
-  wave1 = generate_3g_waveform(m1,m2,dist,lambda1,lambda2) 
-  wavebasez = wavebasez.add_into(wave1) 
-wavebase = wavebasez.add_into(wavebasez)
-
-f7.plot(wavebasez.sample_times, wavebasez, label = "m1 = {0}, m2 = {1},dist = {2},lambda1 = {3},lambda2 = {4}".format(m1,m2,dist,lambda1,lambda2),color='r')
-f7.plot(hp, hc, label='inclination' )
-#f7.plot(hp, hc, label='demo1')
-f7.plot(xvh.sample_frequencies, waveform_power(xvh), label='gravitational wave model PSD')
-#wavefunction end-------------------------------------------------------------------------
 
 #saves the images 
 fig.savefig('/Users/jadenjesus/Documents/Grad_project/test11.png')
