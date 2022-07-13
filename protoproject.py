@@ -1,7 +1,7 @@
 from cmath import sqrt
 from distutils.errors import DistutilsArgError
 from inspect import Parameter
-from turtle import distance
+from turtle import color, distance
 import pylab
 
 from pycbc import waveform
@@ -20,6 +20,7 @@ from pycbc.waveform import get_td_waveform
 from pycbc.waveform import get_fd_waveform
 from pycbc.filter import matched_filter
 from pycbc import psd
+
 
 
 
@@ -114,6 +115,7 @@ lwidth= 3
 iterations= 10
 
 postmerger_snrs = []
+
 #make 4 subplots so all simulations could be grouped together
 #formatting all 4 subplots
 plt.style.use('seaborn-pastel')
@@ -191,6 +193,18 @@ for num in range(iterations):
   AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(xvh),xvh.delta_f,low_freq_cutoff=low_frequency_cutoff)
   max_freq=CosmicExplorerPSD.sample_frequencies[-1]
   max_freq_APlus=AdvancedLIGOPlusPSD.sample_frequencies[-1] 
+
+  #Amplitude spectral density
+  CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
+  AdvancedLIGOPlusASD=np.sqrt(AdvancedLIGOPlusPSD)
+  max_freqx=CosmicExplorerASD.sample_frequencies[-1]
+  max_freqx_APlus=AdvancedLIGOPlusASD.sample_frequencies[-1]
+
+  #snr building
+  for trial in range (iterations):
+     postmerger_snrs[-1][trial] += np.random.randn(postmerger_snrs[-1][trial].shape[0]) * duration
+     
+
   #calculates hp and hc
   hp, hc = wave.compute_hphc(params)
 
@@ -204,7 +218,7 @@ for num in range(iterations):
   hp_fs = hp_ts.to_frequencyseries(delta_f=0.125) #HP Frequency Series
 
   #makes plot of h+ amplitude vs frequency
-  f2.loglog(hp_fs.sample_frequencies,.5* np.abs(hp_fs), 
+  f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
     lw=lwidth, alpha= transparency, label= None)
   
   #makes power spectral density plot
@@ -221,9 +235,7 @@ for num in range(iterations):
 
  
 
-f3.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd')
-f3.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
-f3.legend()
+
 
 #formating our waveform graphs individually
 f1.set_title('Postmerger h+ Strain vs. Time', fontsize=22, loc='center')
@@ -235,8 +247,9 @@ f1.grid(False)
 f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
 f2.set_ylabel("Amplitude", fontsize=14)
 f2.set_xlabel("Frequency", fontsize=14)
-f2.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd')
-f2.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
+f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer asd',color='orange')
+f2.loglog(AdvancedLIGOPlusASD.sample_frequencies,AdvancedLIGOPlusASD,label='A+ asd',color='black')
+#f2.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd')
 f2.legend()
 #f2.set_xlim(xmin=1000, xmax=10000)
 #f2.set_ylim(ymin=10**-29, ymax=10**-24)
@@ -246,6 +259,9 @@ f2.grid(False)
 f3.set_title('Power Spectral Density', fontsize=22)
 #f3.set_xlim(xmin=10**3, xmax=10**4)
 #f3.set_ylim(ymin=10**-54, ymax=10**-44)
+f3.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )
+f3.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd',color='red')
+f3.legend()
 f3.set_facecolor(c)
 f3.grid(False)
 
@@ -255,7 +271,7 @@ f4.set_ylabel("Amplitude")
 f4.set_xlim(xmin=.0, xmax=0.02)
 f4.set_facecolor(c)
 
-
+f4.plot(postmerger_snrs[-1].T)
 #SNR-------------------------------------------------------------------
 #print(pycbc.psd.get_lalsim_psd_list())
 
@@ -268,13 +284,13 @@ print ("SNR of reference signal is", reference_SNR, "compared to", reference_SNR
 print ("Cosmic Explorer gives SNR",reference_SNR/reference_SNR_Aplus ,"times greater." )
 #SNR-----------------------------------------------------------------------------
     
-print('m1 value:',m1_samples)
-print( 'm2 value:', m2_samples)
+#print('m1 value:',m1_samples)
+#print( 'm2 value:', m2_samples)
 
-print('distance:',luminosity_distance_Mpc)
-print('lambda1:',lambda1)
-print('lambda2',lambda2)
-print('duration',duration)
+#print('distance:',luminosity_distance_Mpc)
+#print('lambda1:',lambda1)
+#print('lambda2',lambda2)
+#print('duration',duration)
 
 #saves the images 
 fig.savefig('/Users/jadenjesus/Documents/Grad_project/test11.png')
