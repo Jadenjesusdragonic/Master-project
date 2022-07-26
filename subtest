@@ -1,0 +1,188 @@
+from pycbc import waveform
+from pycbc.types import TimeSeries as PTimeSeries, FrequencySeries
+from gwpy.timeseries import TimeSeries
+import h5py
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import math
+from bajes.obs.gw import Series
+import pycbc.psd
+from pycbc import psd
+
+from pycbc.waveform import get_td_waveform 
+
+#time of GW170817
+time_of_event = 1187008882.4 
+
+post_trigger_duration =4
+duration = 8
+analysis_start = time_of_event + post_trigger_duration - duration
+# Use gwpy to fetch the open data
+H1_analysis_data = TimeSeries.fetch_open_data(
+    "H1", analysis_start, analysis_start + duration, sample_rate=4096*4, 
+    cache=True)
+
+t = H1_analysis_data.times
+strain = H1_analysis_data.value
+# set the data properties coherently
+seglen = 8           # duration of the segment [s]
+srate  = 4096*4        # sampling rate [Hz]
+t_gps  = 0 # central value of time
+f_max  = 1024*4 
+f_min  = 20 
+
+series = Series('time', strain, seglen=seglen, srate=srate, t_gps=t_gps, 
+                f_min=f_min, f_max=f_max)
+
+from bajes.obs.gw import Waveform
+
+wave  = Waveform(series.freqs, srate, seglen, 'NRPM') #NRPM for postmergers
+
+fn="/Users/jadenjesus/Documents/GW170817_GWTC-1.hdf5"
+data = h5py.File(fn,'r')
+
+#defining samples
+
+posterior_samples = data['IMRPhenomPv2NRT_highSpin_posterior']
+#print parameter names 
+
+pnames=posterior_samples.dtype.names
+print('\n\n List of Parameters:')
+print(pnames,'\n')
+#using pandas to set pnames
+
+pnames = posterior_samples.dtype.names
+
+#reading in mass 1 samples
+
+ind = pnames.index('m1_detector_frame_Msun')
+
+m1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#reading in mass 2 samples
+
+ind = pnames.index('m2_detector_frame_Msun')
+
+m2_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#Defining lambda1 parameter
+
+ind = pnames.index('lambda1')
+
+lambda1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#defining lambda2 parameter
+ind = pnames.index('lambda2')
+
+lambda2_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#defining distance parameter
+ind=pnames.index('luminosity_distance_Mpc')
+
+distance_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#inclination parameter
+ind=pnames.index('costheta_jn')
+
+inclination_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#GW170817 has array shape ~4000, chooses where in the array to start taking data
+arr_index = 2000
+
+low_frequency_cutoff = 5
+
+#declaration of variables for easy adjustment
+deltaT= 1./srate
+c = "white"
+transparency = 0.4
+lwidth= 3
+iterations= 10
+
+postmerger_snrs = []
+#make 4 subplots so all simulations could be grouped together
+#formatting all 4 subplots
+plt.style.use('seaborn-pastel')
+fig, (f1,f3) = plt.subplots(2, figsize=(8, 13))
+
+#make simulations
+for num in range(iterations):
+#get values from the GW170817 data
+  m1 = m1_samples[arr_index]
+  m2= m2_samples[arr_index]
+  lambda1= lambda1_samples[arr_index]
+  lambda2= lambda2_samples[arr_index]
+  luminosity_distance_Mpc=distance_samples[arr_index]
+  costheta_jn=inclination_samples[arr_index]
+#NRPM approx is fickle and does not work if lambda values are lower than 350
+#experimenting have found that sometimes it would work if a lambda1 = ~200 and 
+#lambda2 = >1000 however, for ease of use, I just set the values for both lambda
+#values to be 350 or up
+  while lambda1 <= 350.0 or lambda2 <=350.0:
+    arr_index = arr_index + 1
+    m1 = m1_samples[arr_index]
+    m2= m2_samples[arr_index]
+    lambda1= lambda1_samples[arr_index]
+    lambda2= lambda2_samples[arr_index]
+    luminosity_distance_Mpc=distance_samples[arr_index]
+    costheta_jn=inclination_samples[arr_index]
+    
+
+
+  #calculate chirp mass and mass ratio based on values received from previous data
+  chirp_mass = (math.pow((m1 * m2), (3/5))) / (math.pow((m1 + m2), (1/5)))
+  q = m1 / m2
+
+#parameters for new waveform
+  params = {'mchirp'       : chirp_mass,    # chirp mass [solar masses] 
+              'q'          : q,      # mass ratio 
+              's1x'        : 0.,      # primary spin parameter, x component
+              's1y'        : 0.,      # primary spin parameter, y component
+              's1z'        : 0.,      # primary spin parameter, z component
+              's2x'        : 0.,      # secondary spin parameter, x component
+              's2y'        : 0.,      # secondary spin parameter, y component
+              's2z'        : 0.,      # secondary spin parameter, z component
+              'lambda1'    : lambda1,    # primary tidal parameter 
+              'lambda2'    : lambda2,    # secondary tidal parameter
+              'distance'   : luminosity_distance_Mpc,    # distance [Mpc]   #this will change 100.8114416513031 for using samples
+              'iota'       : costheta_jn,   # inclination [rad]   #this will change to using samples instead fixed value np.pi
+              'ra'         : 0.,     # right ascension [rad]
+              'dec'        : 0.,   # declination [rad]
+              'psi'        : 0.,      # polarization angle [rad]
+              'time_shift' : 0.419,   # time shift from GPS time [s]
+              'phi_ref'    : 0.,      # phase shift [rad]
+              'f_min'      : 20.,     # minimum frequency [Hz]
+              'srate'      : srate,   # sampling rate [Hz]
+              'seglen'     : seglen,  # segment duration [s] 
+              'tukey'      : 0.1,     # parameter for tukey window
+              't_gps'      : t_gps,   # GPS trigger time
+              'lmax'       : 0., 
+              'eccentricity' : 0.
+             }  
+import pycbc.psd
+import pycbc.filter
+import pycbc.waveform
+
+xvh, _ = waveform.get_td_waveform(approximant="TaylorT4", 
+                                  mass1=m1_samples[arr_index],
+                                  mass2=m2_samples[arr_index],
+                                  distance=luminosity_distance_Mpc,
+                                  delta_t=1.0,
+                                  f_lower=low_frequency_cutoff)
+
+CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(xvh),xvh.delta_t, low_freq_cutoff=low_frequency_cutoff)
+AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(xvh),xvh.delta_t,low_freq_cutoff=low_frequency_cutoff)
+max_freq=CosmicExplorerPSD.sample_frequencies[-1]
+max_freq_APlus=AdvancedLIGOPlusPSD.sample_frequencies[-1] 
+
+f3.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )
+f3.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd',color='red')
+f3.legend()
+
+hp_ts = PTimeSeries(xvh, delta_t=deltaT)
+hp_fs = hp_ts.to_frequencyseries(delta_f=1.0) #HP Frequency Series
+
+snr=pycbc.filter.matchedfilter.sigmasq(hp_fs,psd=CosmicExplorerPSD,low_frequency_cutoff=low_frequency_cutoff)
+f1.plot(snr.sample_times, abs(snr))
+fig.savefig('/Users/jadenjesus/Documents/subtest3.png')
