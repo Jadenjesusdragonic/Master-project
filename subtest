@@ -8,10 +8,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import math
 from bajes.obs.gw import Series
-import pycbc.psd
 from pycbc import psd
 
 from pycbc.waveform import get_td_waveform 
+from pycbc.waveform import get_fd_waveform
+import pycbc.psd
+import pycbc.filter
+import pycbc.waveform
 
 #time of GW170817
 time_of_event = 1187008882.4 
@@ -44,31 +47,27 @@ fn="/Users/jadenjesus/Documents/GW170817_GWTC-1.hdf5"
 data = h5py.File(fn,'r')
 
 #defining samples
-
 posterior_samples = data['IMRPhenomPv2NRT_highSpin_posterior']
-#print parameter names 
 
+#print parameter names 
 pnames=posterior_samples.dtype.names
 print('\n\n List of Parameters:')
-print(pnames,'\n')
-#using pandas to set pnames
+print(pnames,'\n') 
 
+#using pandas to set pnames
 pnames = posterior_samples.dtype.names
 
 #reading in mass 1 samples
-
 ind = pnames.index('m1_detector_frame_Msun')
 
 m1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
 
 #reading in mass 2 samples
-
 ind = pnames.index('m2_detector_frame_Msun')
 
 m2_samples = np.array([samp[ind] for samp in posterior_samples[()]])
 
 #Defining lambda1 parameter
-
 ind = pnames.index('lambda1')
 
 lambda1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
@@ -100,11 +99,13 @@ transparency = 0.4
 lwidth= 3
 iterations= 10
 
+#empty list for postmerger 
 postmerger_snrs = []
+
 #make 4 subplots so all simulations could be grouped together
 #formatting all 4 subplots
 plt.style.use('seaborn-pastel')
-fig, (f1,f3) = plt.subplots(2, figsize=(8, 13))
+fig, (f1) = plt.subplots(1, figsize=(8, 13))
 
 #make simulations
 for num in range(iterations):
@@ -115,6 +116,7 @@ for num in range(iterations):
   lambda2= lambda2_samples[arr_index]
   luminosity_distance_Mpc=distance_samples[arr_index]
   costheta_jn=inclination_samples[arr_index]
+
 #NRPM approx is fickle and does not work if lambda values are lower than 350
 #experimenting have found that sometimes it would work if a lambda1 = ~200 and 
 #lambda2 = >1000 however, for ease of use, I just set the values for both lambda
@@ -160,29 +162,37 @@ for num in range(iterations):
               'lmax'       : 0., 
               'eccentricity' : 0.
              }  
-import pycbc.psd
-import pycbc.filter
-import pycbc.waveform
+ # sampling rate [Hz] srate  = 4096*4 
+        
 
-xvh, _ = waveform.get_td_waveform(approximant="TaylorT4", 
-                                  mass1=m1_samples[arr_index],
-                                  mass2=m2_samples[arr_index],
-                                  distance=luminosity_distance_Mpc,
-                                  delta_t=1.0,
-                                  f_lower=low_frequency_cutoff)
+#creating waveform 
+def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
+    hp = get_td_waveform(approximant='TaylorT4', 
+                                 mass1=m1, 
+                                 mass2=m2, 
+                                 distance = distance, 
+                                 delta_t=deltaT, 
+                                 lambda1=lambda1,
+                                 lambda2=lambda2,
+                                 f_lower=low_frequency_cutoff)
 
-CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(xvh),xvh.delta_t, low_freq_cutoff=low_frequency_cutoff)
-AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(xvh),xvh.delta_t,low_freq_cutoff=low_frequency_cutoff)
-max_freq=CosmicExplorerPSD.sample_frequencies[-1]
-max_freq_APlus=AdvancedLIGOPlusPSD.sample_frequencies[-1] 
+    return hp
 
-f3.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )
-f3.loglog(AdvancedLIGOPlusPSD.sample_frequencies,AdvancedLIGOPlusPSD,label='A+ psd',color='red')
-f3.legend()
 
-hp_ts = PTimeSeries(xvh, delta_t=deltaT)
-hp_fs = hp_ts.to_frequencyseries(delta_f=1.0) #HP Frequency Series
+#what each definition are 
+m1=m1_samples
+m2=m2_samples
+distance=luminosity_distance_Mpc
+lambda1=lambda1
+lambda2=lambda2
 
-snr=pycbc.filter.matchedfilter.sigmasq(hp_fs,psd=CosmicExplorerPSD,low_frequency_cutoff=low_frequency_cutoff)
-f1.plot(snr.sample_times, abs(snr))
-fig.savefig('/Users/jadenjesus/Documents/subtest3.png')
+#loop to put each element in postmerger[ ]
+for i in range(0,len(m1)):
+        
+        postmerger_snrs.append(m1[i])
+        postmerger_snrs.append(m2[i])
+        postmerger_snrs.append(distance)
+        postmerger_snrs.append(lambda1)
+        postmerger_snrs.append(lambda2)
+
+#SNR
