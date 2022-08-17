@@ -1,5 +1,5 @@
 from pycbc import waveform
-from pycbc.types import TimeSeries as PTimeSeries, FrequencySeries
+from pycbc.types import TimeSeries 
 from gwpy.timeseries import TimeSeries
 import h5py
 import numpy as np
@@ -164,8 +164,9 @@ for num in range(iterations):
              }  
  # sampling rate [Hz] srate  = 4096*4 
         
+#delta_f = 1.0 / 16
 
-#creating waveform 
+#creating waveform
 def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
     hp = get_td_waveform(approximant='TaylorT4', 
                                  mass1=m1, 
@@ -178,7 +179,6 @@ def generate_3g_waveform(m1,m2,distance,lambda1,lambda2):
 
     return hp
 
-
 #what each definition are 
 m1=m1_samples
 m2=m2_samples
@@ -186,13 +186,27 @@ distance=luminosity_distance_Mpc
 lambda1=lambda1
 lambda2=lambda2
 
+
+#defining psd
+#AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(hp),hp.delta_f,low_freq_cutoff=low_frequency_cutoff)
+
+
 #loop to put each element in postmerger[ ]
 for i in range(0,len(m1)):
-        
         postmerger_snrs.append(m1[i])
         postmerger_snrs.append(m2[i])
         postmerger_snrs.append(distance)
         postmerger_snrs.append(lambda1)
         postmerger_snrs.append(lambda2)
+        #wave1= generate_3g_waveform(m1[i],m2[i],distance,lambda1,lambda2)
 
-#SNR
+#define psd
+#CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave1),wave1.delta_f, low_freq_cutoff=low_frequency_cutoff)       
+
+#Snr calculation
+#snr=pycbc.filter.matchedfilter.sigmasq(wave1,psd=CosmicExplorerPSD,low_frequency_cutoff=low_frequency_cutoff)
+
+#f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
+
+
+fig.savefig('/Users/jadenjesus/Documents/test1x.png')
