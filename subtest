@@ -99,8 +99,7 @@ transparency = 0.4
 lwidth= 3
 iterations= 10
 
-#empty list for postmerger 
-postmerger_snrs = []
+
 
 #make 4 subplots so all simulations could be grouped together
 #formatting all 4 subplots
@@ -163,50 +162,44 @@ for num in range(iterations):
               'eccentricity' : 0.
              }  
  # sampling rate [Hz] srate  = 4096*4 
-        
-#delta_f = 1.0 / 16
-
+#empty list for postmerger 
+postmerger_snrs = []   
+delta_f = 1.0 / 16
+print(postmerger_snrs)
+delta_t=1/4096*4 
+#what each definition are 
+m1=m1_samples[arr_index]
+m2=m2_samples[arr_index]
+distance=luminosity_distance_Mpc
+lambda1=lambda1
+lambda2=lambda2
+delta_t=deltaT
 #creating waveform
 def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
     hp = get_td_waveform(approximant='TaylorT4', 
                                  mass1=m1, 
                                  mass2=m2, 
                                  distance = distance, 
-                                 delta_t=deltaT, 
+                                 delta_t=1/4096*4, 
                                  lambda1=lambda1,
                                  lambda2=lambda2,
                                  f_lower=low_frequency_cutoff)
-
+    
     return hp
 
-#what each definition are 
-m1=m1_samples
-m2=m2_samples
-distance=luminosity_distance_Mpc
-lambda1=lambda1
-lambda2=lambda2
+range=[m1,m2,distance,delta_t,lambda1,lambda2]
 
-
-#defining psd
-#AdvancedLIGOPlusPSD=psd.from_string('aLIGOAPlusDesignSensitivityT1800042',len(hp),hp.delta_f,low_freq_cutoff=low_frequency_cutoff)
-
-
-#loop to put each element in postmerger[ ]
-for i in range(0,len(m1)):
-        postmerger_snrs.append(m1[i])
-        postmerger_snrs.append(m2[i])
-        postmerger_snrs.append(distance)
-        postmerger_snrs.append(lambda1)
-        postmerger_snrs.append(lambda2)
-        #wave1= generate_3g_waveform(m1[i],m2[i],distance,lambda1,lambda2)
-
-#define psd
-#CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave1),wave1.delta_f, low_freq_cutoff=low_frequency_cutoff)       
-
-#Snr calculation
-#snr=pycbc.filter.matchedfilter.sigmasq(wave1,psd=CosmicExplorerPSD,low_frequency_cutoff=low_frequency_cutoff)
-
-#f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
-
-
-fig.savefig('/Users/jadenjesus/Documents/test1x.png')
+#loop to put each element in postmerger[ ]  0,len(m1) #(len(str(m1)))
+for i in range:
+        postmerger_snrs.append(i)
+        #postmerger_snrs.append(m1)
+        #postmerger_snrs.append(m2)
+        #postmerger_snrs.append(distance)
+        #postmerger_snrs.append(lambda1)
+        #postmerger_snrs.append(lambda2)
+        wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
+#wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
+print(wave)
+print(postmerger_snrs)
+print(delta_t)
+CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_t, low_freq_cutoff=low_frequency_cutoff)
