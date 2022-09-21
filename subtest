@@ -187,7 +187,11 @@ for i in range:
 print(wave)
 print(postmerger_snrs)
 
+#cosmic explorer psd
+delta_f = 1.0 / 16
+low_frequency_cutoff = 1100
 psdc= pycbc.psd.from_string('CosmicExplorerP1600143',len(wave), wave.delta_f, low_frequency_cutoff)
+
 #Snr calculation
 snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=psdc,low_frequency_cutoff=low_frequency_cutoff)
 print('snr:',snr)
