@@ -22,13 +22,7 @@ time_of_event = 1187008882.4
 post_trigger_duration =4
 duration = 8
 analysis_start = time_of_event + post_trigger_duration - duration
-# Use gwpy to fetch the open data
-H1_analysis_data = TimeSeries.fetch_open_data(
-    "H1", analysis_start, analysis_start + duration, sample_rate=4096*4, 
-    cache=True)
 
-t = H1_analysis_data.times
-strain = H1_analysis_data.value
 # set the data properties coherently
 seglen = 8           # duration of the segment [s]
 srate  = 4096*4        # sampling rate [Hz]
@@ -36,12 +30,7 @@ t_gps  = 0 # central value of time
 f_max  = 1024*4 
 f_min  = 20 
 
-series = Series('time', strain, seglen=seglen, srate=srate, t_gps=t_gps, 
-                f_min=f_min, f_max=f_max)
-
 from bajes.obs.gw import Waveform
-
-wave  = Waveform(series.freqs, srate, seglen, 'NRPM') #NRPM for postmergers
 
 fn="/Users/jadenjesus/Documents/GW170817_GWTC-1.hdf5"
 data = h5py.File(fn,'r')
@@ -176,7 +165,7 @@ lambda2=lambda2
 delta_t=deltaT
 #creating waveform
 def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
-    hp = get_td_waveform(approximant='TaylorT4', 
+    hp,hc = get_td_waveform(approximant='TaylorT4', 
                                  mass1=m1, 
                                  mass2=m2, 
                                  distance = distance, 
@@ -192,14 +181,17 @@ range=[m1,m2,distance,delta_t,lambda1,lambda2]
 #loop to put each element in postmerger[ ]  0,len(m1) #(len(str(m1)))
 for i in range:
         postmerger_snrs.append(i)
-        #postmerger_snrs.append(m1)
-        #postmerger_snrs.append(m2)
-        #postmerger_snrs.append(distance)
-        #postmerger_snrs.append(lambda1)
-        #postmerger_snrs.append(lambda2)
+        
         wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
-#wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
+
 print(wave)
 print(postmerger_snrs)
-print(delta_t)
-CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_t, low_freq_cutoff=low_frequency_cutoff)
+
+psdc= pycbc.psd.from_string('CosmicExplorerP1600143',len(wave), wave.delta_f, low_frequency_cutoff)
+#Snr calculation
+snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=psdc,low_frequency_cutoff=low_frequency_cutoff)
+print('snr:',snr)
+
+
+snrsq=np.sqrt(snr)
+print('snr after squared:',snrsq)
