@@ -79,7 +79,7 @@ inclination_samples = np.array([samp[ind] for samp in posterior_samples[()]])
 #GW170817 has array shape ~4000, chooses where in the array to start taking data
 arr_index = 2000
 
-low_frequency_cutoff = 5
+low_frequency_cutoff = 1100
 
 #declaration of variables for easy adjustment
 deltaT= 1./srate
