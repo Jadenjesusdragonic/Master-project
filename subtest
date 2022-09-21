@@ -199,3 +199,7 @@ print('snr:',snr)
 
 snrsq=np.sqrt(snr)
 print('snr after squared:',snrsq)
+
+#results 
+#snr: 1049.4159604106046
+#snr after squared: 32.39469031200336
