@@ -1,5 +1,5 @@
 from pycbc import waveform
-from pycbc.types import TimeSeries 
+from pycbc.types import TimeSeries as PTimeSeries
 from gwpy.timeseries import TimeSeries
 import h5py
 import numpy as np
@@ -22,6 +22,7 @@ time_of_event = 1187008882.4
 post_trigger_duration =4
 duration = 8
 analysis_start = time_of_event + post_trigger_duration - duration
+# Use gwpy to fetch the open data
 
 # set the data properties coherently
 seglen = 8           # duration of the segment [s]
@@ -29,6 +30,8 @@ srate  = 4096*4        # sampling rate [Hz]
 t_gps  = 0 # central value of time
 f_max  = 1024*4 
 f_min  = 20 
+
+
 
 from bajes.obs.gw import Waveform
 
@@ -79,7 +82,7 @@ inclination_samples = np.array([samp[ind] for samp in posterior_samples[()]])
 #GW170817 has array shape ~4000, chooses where in the array to start taking data
 arr_index = 2000
 
-low_frequency_cutoff = 1100
+low_frequency_cutoff = 30.0
 
 #declaration of variables for easy adjustment
 deltaT= 1./srate
@@ -93,7 +96,7 @@ iterations= 10
 #make 4 subplots so all simulations could be grouped together
 #formatting all 4 subplots
 plt.style.use('seaborn-pastel')
-fig, (f1) = plt.subplots(1, figsize=(8, 13))
+fig, (f1,f2) = plt.subplots(2, figsize=(8, 13))
 
 #make simulations
 for num in range(iterations):
@@ -150,11 +153,12 @@ for num in range(iterations):
               'lmax'       : 0., 
               'eccentricity' : 0.
              }  
- # sampling rate [Hz] srate  = 4096*4 
+
 #empty list for postmerger 
-postmerger_snrs = []   
-delta_f = 1.0 / 16
+postmerger_snrs = []  
 print(postmerger_snrs)
+
+delta_f = 1.0 / 16
 delta_t=1/4096*4 
 #what each definition are 
 m1=m1_samples[arr_index]
@@ -162,44 +166,70 @@ m2=m2_samples[arr_index]
 distance=luminosity_distance_Mpc
 lambda1=lambda1
 lambda2=lambda2
-delta_t=deltaT
+
 #creating waveform
 def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
     hp,hc = get_td_waveform(approximant='TaylorT4', 
                                  mass1=m1, 
                                  mass2=m2, 
-                                 distance = distance, 
-                                 delta_t=1/4096*4, 
+                                 distance =distance, 
+                                 delta_t=1.0/4096, 
                                  lambda1=lambda1,
                                  lambda2=lambda2,
                                  f_lower=low_frequency_cutoff)
     
     return hp
 
-range=[m1,m2,distance,delta_t,lambda1,lambda2]
+range=[m1,m2,distance,lambda1,lambda2]
 
 #loop to put each element in postmerger[ ]  0,len(m1) #(len(str(m1)))
 for i in range:
         postmerger_snrs.append(i)
-        
+       
         wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
 
-print(wave)
-print(postmerger_snrs)
+print('waveform:',wave)
+print('postmerger:',postmerger_snrs)
 
-#cosmic explorer psd
-delta_f = 1.0 / 16
-low_frequency_cutoff = 1100
-psdc= pycbc.psd.from_string('CosmicExplorerP1600143',len(wave), wave.delta_f, low_frequency_cutoff)
+CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_f, low_freq_cutoff=low_frequency_cutoff)
+max_freq=CosmicExplorerPSD.sample_frequencies[-1]
+#f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
+print('psd:',CosmicExplorerPSD)
 
+CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
+f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer asd',color='red' )  
+print('ASD:',CosmicExplorerASD)
+#aLIGOZeroDetLowPower
+hp_ts = PTimeSeries(wave, delta_t=deltaT)
+hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
+
+f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
+    lw=lwidth, alpha= transparency, label= None,color='green')
+f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
+f2.set_ylabel("Amplitude", fontsize=14)
+f2.set_xlabel("Frequency", fontsize=14)
+f2.set_xlim(1e-1,1e4)
+f2.set_ylim(1e-26,1e-22)
+
+#f2.plot(wave.sample_times,wave)
+#psdc= pycbc.psd.from_string('CosmicExplorerP1600143',len(wave), wave.delta_f, low_frequency_cutoff)
 #Snr calculation
-snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=psdc,low_frequency_cutoff=low_frequency_cutoff)
-print('snr:',snr)
+#snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=psdc,low_frequency_cutoff=low_frequency_cutoff)
+#print('snr:',snr)
 
 
-snrsq=np.sqrt(snr)
-print('snr after squared:',snrsq)
+#snrsq=np.sqrt(snr)
+#print('snr:',snrsq)
 
-#results 
-#snr: 1049.4159604106046
-#snr after squared: 32.39469031200336
+#print(math.sqrt(snr))
+#print('m1[index]:',m1_samples[arr_index])
+#print('m2[index]:',m2_samples[arr_index])
+#print('m1:',m1_samples)
+#print('m2:',m2_samples)
+#print('distance:',distance_samples)
+#print('lam1:',lambda1_samples)
+#print('lam2:',lambda2_samples)
+
+
+#saves the images 
+fig.savefig('/Users/jadenjesus/Documents/Grad_project/newtest.png')
