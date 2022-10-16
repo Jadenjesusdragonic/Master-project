@@ -161,11 +161,11 @@ print(postmerger_snrs)
 delta_f = 1.0 / 16
 delta_t=1/4096*4 
 #what each definition are 
-m1=m1_samples[arr_index]
-m2=m2_samples[arr_index]
-distance=luminosity_distance_Mpc
-lambda1=lambda1
-lambda2=lambda2
+m1=m1_samples#[arr_index]
+m2=m2_samples#[arr_index]
+distance=distance_samples#luminosity_distance_Mpc
+lambda1=lambda1_samples
+lambda2=lambda2_samples
 
 #creating waveform
 def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
@@ -180,28 +180,52 @@ def generate_3g_waveform(m1,m2,distance,lambda1,lambda2):
     
     return hp
 
-range=[m1,m2,distance,lambda1,lambda2]
+#range=[m1,m2,distance,lambda1,lambda2]
 
 #loop to put each element in postmerger[ ]  0,len(m1) #(len(str(m1)))
-for i in range:
-        postmerger_snrs.append(i)
-       
-        wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
+for i in range(0,len(m1)):
+        #postmerger_snrs.append(m1[i])
+        #postmerger_snrs.append(m2[i])
+        #postmerger_snrs.append(distance[i])
+        #postmerger_snrs.append(lambda1[i])
+        #postmerger_snrs.append(lambda2[i])
+        #postmerger_snrs.append(i)
+        #postmerger_snrs = postmerger_snrs[:20] 
+        wave=generate_3g_waveform(m1[i],m2[i],distance[i],lambda1[i],lambda2[i])
+        postmerger_snrs.append(wave)
 
-print('waveform:',wave)
-print('postmerger:',postmerger_snrs)
+#print('waveform:',wave)
+#print('postmerger:',postmerger_snrs)
 
+
+#aLigo midlow psd
+ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
+f1.loglog(ALigoLOWMID.sample_frequencies,ALigoLOWMID,label='Aligo PSD')
+aLIGOLOWMID=np.sqrt(ALigoLOWMID)
+
+f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD',color='purple')
+
+#SNR for aLigo
+snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
+snrsq=np.sqrt(snr)
+print('snr for aLigo:',snr)
+print('sqrt Snr for aLigo:',snrsq)
+
+#Cosmic Explorer PSD
 CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_f, low_freq_cutoff=low_frequency_cutoff)
 max_freq=CosmicExplorerPSD.sample_frequencies[-1]
-#f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
+f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
 print('psd:',CosmicExplorerPSD)
 
 CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
-f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer asd',color='red' )  
+f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer ASD',color='red' )  
 print('ASD:',CosmicExplorerASD)
 #aLIGOZeroDetLowPower
 hp_ts = PTimeSeries(wave, delta_t=deltaT)
 hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
+
+
+f2.loglog(hp_fs.sample_frequencies,2*np.abs(hp_fs)*np.sqrt(hp_fs.sample_frequencies),label='factor freq')
 
 f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
     lw=lwidth, alpha= transparency, label= None,color='green')
@@ -209,7 +233,8 @@ f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
 f2.set_ylabel("Amplitude", fontsize=14)
 f2.set_xlabel("Frequency", fontsize=14)
 f2.set_xlim(1e-1,1e4)
-f2.set_ylim(1e-26,1e-22)
+f2.set_ylim(1e-26,1e-20)
+f2.legend()
 
 #f2.plot(wave.sample_times,wave)
 #psdc= pycbc.psd.from_string('CosmicExplorerP1600143',len(wave), wave.delta_f, low_frequency_cutoff)
@@ -220,15 +245,6 @@ f2.set_ylim(1e-26,1e-22)
 
 #snrsq=np.sqrt(snr)
 #print('snr:',snrsq)
-
-#print(math.sqrt(snr))
-#print('m1[index]:',m1_samples[arr_index])
-#print('m2[index]:',m2_samples[arr_index])
-#print('m1:',m1_samples)
-#print('m2:',m2_samples)
-#print('distance:',distance_samples)
-#print('lam1:',lambda1_samples)
-#print('lam2:',lambda2_samples)
 
 
 #saves the images 
