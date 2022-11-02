@@ -1,0 +1,210 @@
+from pycbc import waveform
+from pycbc.types import TimeSeries as PTimeSeries
+from gwpy.timeseries import TimeSeries
+import h5py
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import math
+from bajes.obs.gw import Series
+from pycbc import psd
+
+from pycbc.waveform import get_td_waveform 
+import pycbc.psd
+import pycbc.filter
+import pycbc.waveform
+
+
+
+#time of GW170817
+time_of_event = 1187008882.4 
+
+post_trigger_duration =4
+duration = 8
+analysis_start = time_of_event + post_trigger_duration - duration
+# Use gwpy to fetch the open data
+
+# set the data properties coherently
+seglen = 8           # duration of the segment [s]
+srate  = 4096*4        # sampling rate [Hz]
+t_gps  = 0 # central value of time
+f_max  = 1024*4 
+f_min  = 20 
+
+from bajes.obs.gw import Waveform
+
+fn="/Users/jadenjesus/Documents/GW170817_GWTC-1.hdf5"
+data = h5py.File(fn,'r')
+
+#defining samples
+posterior_samples = data['IMRPhenomPv2NRT_highSpin_posterior']
+
+#print parameter names 
+pnames=posterior_samples.dtype.names
+print('\n\n List of Parameters:')
+print(pnames,'\n') 
+
+#using pandas to set pnames
+pnames = posterior_samples.dtype.names
+
+#reading in mass 1 samples
+ind = pnames.index('m1_detector_frame_Msun')
+
+m1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#reading in mass 2 samples
+ind = pnames.index('m2_detector_frame_Msun')
+
+m2_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#Defining lambda1 parameter
+ind = pnames.index('lambda1')
+
+lambda1_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#defining lambda2 parameter
+ind = pnames.index('lambda2')
+
+lambda2_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#defining distance parameter
+ind=pnames.index('luminosity_distance_Mpc')
+
+distance_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#inclination parameter
+ind=pnames.index('costheta_jn')
+
+inclination_samples = np.array([samp[ind] for samp in posterior_samples[()]])
+
+#GW170817 has array shape ~4000, chooses where in the array to start taking data
+arr_index = 2000
+
+low_frequency_cutoff = 30.0
+
+#declaration of variables for easy adjustment
+deltaT= 1./srate
+c = "white"
+transparency = 0.4
+lwidth= 3
+iterations= 10
+
+
+#delta's for t and f
+delta_f = 1.0 / 16
+delta_t=1/4096*4 
+
+#what each definition are 
+m1=m1_samples#[arr_index]
+m2=m2_samples#[arr_index]
+distance=distance_samples#luminosity_distance_Mpc
+lambda1=lambda1_samples
+lambda2=lambda2_samples
+inclination=inclination_samples
+
+#plot format
+plt.style.use('seaborn-pastel')
+fig, (f1,f2) = plt.subplots(2, figsize=(8, 13))
+
+
+
+#empty list for postmerger 
+postmerger_snrs = []  
+print(postmerger_snrs)
+
+#make simulations
+for i in range(0,len(m1)):
+#get values from the GW170817 data
+  m1 = m1_samples[arr_index]
+  m2= m2_samples[arr_index]
+  lambda1= lambda1_samples[arr_index]
+  lambda2= lambda2_samples[arr_index]
+  distance=distance_samples[arr_index]
+  inclination=inclination_samples[arr_index]
+  
+  #NRPM approx is fickle and does not work if lambda values are lower than 350
+#experimenting have found that sometimes it would work if a lambda1 = ~200 and 
+#lambda2 = >1000 however, for ease of use, I just set the values for both lambda
+#values to be 350 or up
+  while lambda1 <= 350.0 or lambda2 <=350.0:
+    arr_index = arr_index + 1
+    m1 = m1_samples[arr_index]
+    m2= m2_samples[arr_index]
+    lambda1= lambda1_samples[arr_index]
+    lambda2= lambda2_samples[arr_index]
+    distance=distance_samples[arr_index]
+    costheta_jn=inclination_samples[arr_index]
+    
+    #creating waveform
+    def generate_3g_waveform(m1,m2,distance,lambda1,lambda2): 
+        hp,hc = get_td_waveform(approximant='TaylorT4', 
+                                 mass1=m1, 
+                                 mass2=m2, 
+                                 distance =distance, 
+                                 delta_t=1.0/4096, 
+                                 lambda1=lambda1,
+                                 lambda2=lambda2,
+                                 f_lower=low_frequency_cutoff)
+    
+        return hp
+#parameters that generate into a waveform
+    wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2)
+   
+   #aLigo midlow psd
+    ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
+
+    #ALigo midlow ASD
+    aLIGOLOWMID=np.sqrt(ALigoLOWMID)
+    f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
+   
+
+    #Cosmic Explorer PSD
+    CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_f, low_freq_cutoff=low_frequency_cutoff)
+    max_freq=CosmicExplorerPSD.sample_frequencies[-1]
+   
+    #CosmicExplorerP1600143 ASD
+    CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
+    f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer ASD',color='red' )  
+    
+    #timeseries to frequencyseries
+    hp_ts = PTimeSeries(wave, delta_t=deltaT)
+    hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
+
+    #factor frequency
+    f2.loglog(hp_fs.sample_frequencies,2*np.abs(hp_fs)*np.sqrt(hp_fs.sample_frequencies),label='factor freq')
+
+    f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
+    lw=lwidth, alpha= transparency, label= None)
+
+    #Snr for ALigo Low mid
+    snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
+    snrsq=np.sqrt(snr)
+    postmerger_snrs.append(snrsq)
+
+    #Snr for CosmicExplorerP1600143
+    snrx=pycbc.filter.matchedfilter.sigmasq(wave,psd=CosmicExplorerASD,low_frequency_cutoff=low_frequency_cutoff)
+    snrsc=np.sqrt(snrx)
+    
+    #iterates arr_index for next simulation
+    arr_index = arr_index + 1
+
+print(postmerger_snrs)
+f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
+f2.set_ylabel("Amplitude", fontsize=14)
+f2.set_xlabel("Frequency", fontsize=14)
+f2.set_xlim(1e-1,1e4)
+f2.set_ylim(1e-26,1e-20)
+
+
+
+#Print out snr and sq snr for cosmic explorer
+print('snr for aLigo:',snr)
+print('sqrt Snr for aLigo:',snrsq)
+
+#print out snr and sq snr for ALigo
+print('snr for cosmo:',snrx)
+print('sqrt Snr for cosmo:',snrsc)
+
+#location file saved
+fig.savefig('/Users/jadenjesus/Documents/Grad_project/newtest1.png')
