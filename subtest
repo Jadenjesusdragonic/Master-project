@@ -11,10 +11,11 @@ from bajes.obs.gw import Series
 from pycbc import psd
 
 from pycbc.waveform import get_td_waveform 
-from pycbc.waveform import get_fd_waveform
 import pycbc.psd
 import pycbc.filter
 import pycbc.waveform
+
+import csv
 
 #time of GW170817
 time_of_event = 1187008882.4 
@@ -151,53 +152,71 @@ for i in range(0,len(m1)):
         return hp
 #parameters that generate into a waveform
     wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2,inclination)
-    #postmerger_snrs.append(wave)
-    #print(postmerger_snrs)
-    #with open('prac'+str(i+1)+'.csv', 'w') as f:
-        #f.write(str(postmerger_snrs))
+   
 
     #aLigo midlow psd
     ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
-#f1.loglog(ALigoLOWMID.sample_frequencies,ALigoLOWMID,label='Aligo PSD')
+
+    #ALigo midlow ASD
     aLIGOLOWMID=np.sqrt(ALigoLOWMID)
-    f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD',color='purple')
+    f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
    
 
     #Cosmic Explorer PSD
     CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_f, low_freq_cutoff=low_frequency_cutoff)
     max_freq=CosmicExplorerPSD.sample_frequencies[-1]
-    #f1.loglog(CosmicExplorerPSD.sample_frequencies,CosmicExplorerPSD,label='CosmicExplorer psd',color='black' )  
-    #print('psd:',CosmicExplorerPSD)
-
+    
+    #Cosmic Explorer ASD
     CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
     f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer ASD',color='red' )  
-    print('ASD:',CosmicExplorerASD)
+    
 
-#iterates arr_index for next simulation
+
+    #Timeseries to frequency series 
+    hp_ts = PTimeSeries(wave, delta_t=deltaT)
+    hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
+
+    #factor frequency
+    f2.loglog(hp_fs.sample_frequencies,2*np.abs(hp_fs)*np.sqrt(hp_fs.sample_frequencies),label='factor freq')
+
+    f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
+    lw=lwidth, alpha= transparency, label= None)
+
+    #Snr for ALigo Low mid
+    snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
+    snrsq=np.sqrt(snr)
+    postmerger_snrs.append(snrsq)
+
+    #Snr for CosmicExplorerP1600143
+    snrx=pycbc.filter.matchedfilter.sigmasq(wave,psd=CosmicExplorerASD,low_frequency_cutoff=low_frequency_cutoff)
+    snrsc=np.sqrt(snrx)
+
+    #iterates arr_index for next simulation
     arr_index = arr_index + 1
 
-hp_ts = PTimeSeries(wave, delta_t=deltaT)
-hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
-
-f2.loglog(hp_fs.sample_frequencies,2*np.abs(hp_fs)*np.sqrt(hp_fs.sample_frequencies),label='factor freq')
-
-f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
-    lw=lwidth, alpha= transparency, label= None,color='green')
+print(postmerger_snrs)
 f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
 f2.set_ylabel("Amplitude", fontsize=14)
 f2.set_xlabel("Frequency", fontsize=14)
 f2.set_xlim(1e-1,1e4)
 f2.set_ylim(1e-26,1e-20)
 
-#f2.legend()
-#saves the images 
-snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
-snrsq=np.sqrt(snr)
+#csv.file for snr of ALigo
+header=['list of SNR ']
+Aligo=['Aligo Snr']
+with open('ListofSnr.csv', 'w') as file:
+    writer = csv.writer(file)
+    writer.writerow(header)
+    writer.writerow(Aligo)
+    writer.writerow(postmerger_snrs)
+
+#Print out snr and sq snr for cosmic explorer
 print('snr for aLigo:',snr)
 print('sqrt Snr for aLigo:',snrsq)
 
-snrx=pycbc.filter.matchedfilter.sigmasq(wave,psd=CosmicExplorerASD,low_frequency_cutoff=low_frequency_cutoff)
-snrsc=np.sqrt(snrx)
+#print out snr and sq snr for ALigo
 print('snr for cosmo:',snrx)
 print('sqrt Snr for cosmo:',snrsc)
+
+#location file saved
 fig.savefig('/Users/jadenjesus/Documents/Grad_project/newtest.png')
