@@ -147,3 +147,21 @@ for i in range(0,len(m1)):
                                  inclination=inclination)
     
         return hp
+        
+        wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2,inclination)
+   
+
+        #aLigo midlow psd
+        ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
+        
+        #ALigo midlow ASD
+        aLIGOLOWMID=np.sqrt(ALigoLOWMID)
+        f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
+        
+        snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
+        snrsq=np.sqrt(snr)
+        postmerger_snrs.append(snrsq)
+        
+        #iterates arr_index for next simulation
+        arr_index = arr_index + 1
+
