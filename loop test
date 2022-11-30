@@ -93,17 +93,18 @@ delta_f = 1.0 / 16
 delta_t=1/4096*4 
 
 #what each definition are 
-m1=m1_samples[arr_index]
-m2=m2_samples[arr_index]
+m1=m1_samples#[arr_index]
+m2=m2_samples#[arr_index]
 distance=distance_samples#luminosity_distance_Mpc
 lambda1=lambda1_samples
 lambda2=lambda2_samples
 inclination=inclination_samples
 print('m1 before arr_index:',m1_samples)
-
 #plot format
 plt.style.use('seaborn-pastel')
 fig, (f2) = plt.subplots(1, figsize=(8, 13))
+
+
 
 #empty list for postmerger 
 postmerger_snrs = []  
@@ -147,21 +148,25 @@ for i in range(0,len(m1)):
                                  inclination=inclination)
     
         return hp
-        
-        wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2,inclination)
+#parameters that generate into a waveform
+    wave=generate_3g_waveform(m1,m2,distance,lambda1,lambda2,inclination)
    
 
-        #aLigo midlow psd
-        ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
-        
-        #ALigo midlow ASD
-        aLIGOLOWMID=np.sqrt(ALigoLOWMID)
-        f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
-        
-        snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
-        snrsq=np.sqrt(snr)
-        postmerger_snrs.append(snrsq)
-        
-        #iterates arr_index for next simulation
-        arr_index = arr_index + 1
+    #aLigo midlow psd
+    ALigoLOWMID=psd.from_string('aLIGOMidLowSensitivityP1200087',len(wave),wave.delta_f,low_freq_cutoff=low_frequency_cutoff)
 
+    #ALigo midlow ASD
+    aLIGOLOWMID=np.sqrt(ALigoLOWMID)
+    f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
+
+    #Snr for ALigo Low mid
+    snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
+    snrsq=np.sqrt(snr)
+    postmerger_snrs.append(snrsq)
+
+  
+
+    #iterates arr_index for next simulation
+    arr_index = arr_index + 1
+
+   
