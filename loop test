@@ -99,10 +99,10 @@ distance=distance_samples#luminosity_distance_Mpc
 lambda1=lambda1_samples
 lambda2=lambda2_samples
 inclination=inclination_samples
-print('m1 before arr_index:',m1_samples)
+
 #plot format
 plt.style.use('seaborn-pastel')
-fig, (f2) = plt.subplots(1, figsize=(8, 13))
+fig, (f1,f2) = plt.subplots(2, figsize=(8, 13))
 
 
 
@@ -111,7 +111,7 @@ postmerger_snrs = []
 Postmerger_snrc = []
 
 #make simulations
-for i in range(0,len(m1)):
+for arr_index in range(0,len(m1)):
 #get values from the GW170817 data
   m1 = m1_samples[arr_index]
   m2= m2_samples[arr_index]
@@ -125,7 +125,7 @@ for i in range(0,len(m1)):
 #experimenting have found that sometimes it would work if a lambda1 = ~200 and 
 #lambda2 = >1000 however, for ease of use, I just set the values for both lambda
 #values to be 350 or up
-  while lambda1 <= 350.0 or lambda2 <=350.0:
+  if lambda1 <= 350.0 or lambda2 <=350.0:
     arr_index = arr_index + 1
     m1 = m1_samples[arr_index]
     m2= m2_samples[arr_index]
@@ -133,7 +133,7 @@ for i in range(0,len(m1)):
     lambda2= lambda2_samples[arr_index]
     distance=distance_samples[arr_index]
     costheta_jn=inclination_samples[arr_index]
-    print('m1:',m1)
+   
     
     #creating waveform
     def generate_3g_waveform(m1,m2,distance,lambda1,lambda2,inclination): 
@@ -158,15 +158,101 @@ for i in range(0,len(m1)):
     #ALigo midlow ASD
     aLIGOLOWMID=np.sqrt(ALigoLOWMID)
     f2.loglog(aLIGOLOWMID.sample_frequencies,aLIGOLOWMID,label='aLigo ASD')
+   
+
+    #Cosmic Explorer PSD
+    CosmicExplorerPSD=psd.from_string('CosmicExplorerP1600143',len(wave),wave.delta_f, low_freq_cutoff=low_frequency_cutoff)
+    max_freq=CosmicExplorerPSD.sample_frequencies[-1]
+    
+    #Cosmic Explorer ASD
+    CosmicExplorerASD=np.sqrt(CosmicExplorerPSD)
+    f2.loglog(CosmicExplorerASD.sample_frequencies,CosmicExplorerASD,label='CosmicExplorer ASD',color='red' )  
+    
+
+    #Timeseries to frequency series 
+    hp_ts = PTimeSeries(wave, delta_t=deltaT)
+    hp_fs = hp_ts.to_frequencyseries(delta_f=1/16)
+
+    #factor frequency
+    f2.loglog(hp_fs.sample_frequencies,2*np.abs(hp_fs)*np.sqrt(hp_fs.sample_frequencies),label='factor freq')
+
+    f2.loglog(hp_fs.sample_frequencies, np.abs(hp_fs), 
+    lw=lwidth, alpha= transparency, label= None)
 
     #Snr for ALigo Low mid
     snr=pycbc.filter.matchedfilter.sigmasq(wave,psd=ALigoLOWMID,low_frequency_cutoff=low_frequency_cutoff)
     snrsq=np.sqrt(snr)
     postmerger_snrs.append(snrsq)
 
-  
+    #Snr for CosmicExplorerP1600143
+    snrx=pycbc.filter.matchedfilter.sigmasq(wave,psd=CosmicExplorerASD,low_frequency_cutoff=low_frequency_cutoff)
+    snrsc=np.sqrt(snrx)
+    Postmerger_snrc.append(snrx)
 
     #iterates arr_index for next simulation
     arr_index = arr_index + 1
 
-   
+print(postmerger_snrs)
+print( Postmerger_snrc)
+f2.set_title('Postmerger h+ Amplitude vs. Frequency', fontsize=22)
+f2.set_ylabel("Amplitude", fontsize=14)
+f2.set_xlabel("Frequency", fontsize=14)
+f2.set_xlim(1e-1,1e4)
+f2.set_ylim(1e-26,1e-20)
+
+#location file saved
+fig.savefig('/Users/jadenjesus/Documents/Grad_project/newtest.png')
+
+#csv.file for snr of ALigo
+header=['list of SNR ']
+Aligo=['Aligo Snr']
+with open('ListofSnr.csv', 'w') as file:
+    writer = csv.writer(file)
+    writer.writerow(header)
+    writer.writerow(Aligo)
+    writer.writerow(postmerger_snrs)
+
+#csv.file for snr of Cosmic explorer 
+headerx=['list of SNR ']
+Cosmic=['Cosmic Snr']
+with open('ListofSnrCosmic.csv', 'w') as file:
+    writer = csv.writer(file)
+    writer.writerow(headerx)
+    writer.writerow(Cosmic)
+    writer.writerow(Postmerger_snrc)
+
+#Print out snr and sq snr for cosmic explorer
+print('snr for aLigo:',snr)
+print('sqrt Snr for aLigo:',snrsq)
+
+#print out snr and sq snr for ALigo
+print('snr for cosmo:',snrx)
+print('sqrt Snr for cosmo:',snrsc)
+
+# import packages
+import matplotlib.pyplot as plt
+import seaborn as sns
+# generate data
+data =Postmerger_snrc
+
+# plotting a histogram: Cosmic Explorer
+ax = sns.histplot(data,
+				bins=50,
+				kde=True,
+				color='Blue')
+ax.set(xlabel='Normal Distribution (Cosmic Explorer)', ylabel='Frequency')
+
+# generate data
+data =postmerger_snrs
+
+# plotting a histogram: ALigo
+ax = sns.histplot(data,
+				bins=50,
+				kde=True,
+				color='red')
+ax.set(xlabel='Normal Distribution (Aligo)', ylabel='Frequency')
+
+plt.show()
+
+#location file saved
+fig.savefig('/Users/jadenjesus/Documents/Grad_project/distribution.png')
